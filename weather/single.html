@@ -1,0 +1,124 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<html>
+  <head>
+    <link rel="stylesheet" href="static/css/styles.css" type="text/css" media="screen" />
+    <link rel="stylesheet" href="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.13/themes/overcast/jquery-ui.css" type="text/css" media="screen" /> 
+    <link rel="stylesheet" href="static/css/jquery-ui.custom.css" type="text/css" media="screen" /> 
+    <link rel="stylesheet" href="static/css/forms.css" type="text/css" media="screen" /> 
+    <link href='http://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css'>
+    <script type="text/javascript" src="http://www.google.com/jsapi"></script>
+    <script type="text/javascript" src="static/js/utils.js"></script>
+    <script type="text/javascript">
+    google.load('visualization', '1.1', {packages:['controls', 'corechart']});
+    google.load("jquery", "1.4.2");
+    google.load("jqueryui", "1.8.13");
+    </script>
+    
+    <script>
+    // jquery here
+    
+    $(function() {
+  		$("#date").datepicker({
+  		  dateFormat: 'yy-mm-dd',
+  		  maxDate: new Date('2011-06-05')
+  		});
+  		$("#station_id").autocomplete({
+          source: GLOBALS.stations
+      });
+  	});
+    </script>
+    
+    <script>
+    var TABLE_ID = 992383;
+    var INDEXES = {
+      station: 0,
+      year: 1,
+      month: 2,
+      avg_precip: 3,
+      percent_rained: 4,
+      precipitation_arr: 5
+    }
+    
+    function changeData() {
+      var date = new Date($("#date").val());
+      var year = date.getYear()+1900;
+      var month = date.getMonth()+1;
+      $('#ajax_loader').show();
+      var queryText = "SELECT station_id, year, month, avg_precipitation, "+
+                      "percent_rained, precipitation FROM " + TABLE_ID + 
+                      " WHERE year<"+year+" AND year>"+(year-10)+
+                      " AND month=" + (month+1) + 
+                      " AND station_id=" + $('#station_id').val()
+                      " ORDER BY year DESC"
+      var query = new google.visualization.Query(
+        'http://www.google.com/fusiontables/gvizdata?tq='  + queryText);
+      query.send(getData);
+    }
+
+    function getData(response) {
+      var data = response.getDataTable();
+      
+      // define aggregator
+      dailyParser = new google.visualization.ControlWrapper({
+        'controlType': 'DailyParser',
+        'containerId': 'dud_control',
+      });
+      
+      // define charts
+      var comboChart = new google.visualization.ChartWrapper({
+        chartType: 'ComboChart',
+        containerId: 'combo_chart',
+        options: {
+          title : 'Daily precipitation for station',
+          vAxis: {title: "Precipitation/inches"},
+          hAxis: {title: "Day of month"},
+          seriesType: 'bars',
+          series: {
+            1: {type: "line"},
+            }
+        }
+      });
+
+      // Create a dashboard after call
+      var dash = new google.visualization.Dashboard(document.getElementById('dashboard'))
+      dash.bind(dailyParser, comboChart).
+           draw(data);
+  
+      $('#ajax_loader').hide();
+      }
+    </script>
+    <title></title>
+  </head>
+  <body>
+    <div id='container' class='shadow'>
+      <center style='font-size:12px;padding-top:3px'>
+        <a href='single.html'>Single Station</a> | 
+        <a href='many.html'>Multi Stations</a> | 
+        <a href='all.html'>All Stations</a> 
+      </center>
+      <div id='controls_box'>
+        <input type='text' id='station_id' placeholder='Autocomplete station Id'></input>
+        <input type='text' id='date' placeholder='Select a date'></input>        
+        <input type='button' value='go' onclick='changeData(); return false;'></input>
+        <img style='padding-left:10px;display:none' src="static/images/ajax-loader.gif" id='ajax_loader'></img>
+      </div>
+      <div id='dashboard'>
+        <div id='station_id_control'></div>
+        <div id='year_control'></div>
+        <div id='month_control'></div>
+        <div id='dud_control' style='display:none'></div>
+        <div id='combo_chart' style='height:400px'></div>
+      </div>
+      <div id='info' class='small text' style='float:left;padding:8px;margin-left:20px;width:900px;margin-top:10px;border-top:1px solid black'>
+        <p style='margin-bottom:5px;'>
+          Pete works with a weather insurance company. The company regularly gets claims regarding flooding events on specific dates in the past.
+          To gauge validity of a claim, Pete needs to determine daily precipitation levels at a specific station for a specific time.
+          Furthermore, he'd like to compare precipitation levels to this period for the last ten years, to see if the client should
+          have been more prepared for the poor weather.
+        </p>
+        <div class='info smallInfo'><b>Tip</b>: Try station id: <span>403184374</span> and date: <span>2011-03-20</span></div>
+        
+      </div>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,135 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<html>
+  <head>
+    <link rel="stylesheet" href="static/css/styles.css" type="text/css" media="screen" />
+    <link rel="stylesheet" href="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.13/themes/overcast/jquery-ui.css" type="text/css" media="screen" /> 
+    <link rel="stylesheet" href="static/css/jquery-ui.custom.css" type="text/css" media="screen" /> 
+    <link rel="stylesheet" href="static/css/forms.css" type="text/css" media="screen" /> 
+    <link href='http://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css'>
+    <script type="text/javascript" src="http://www.google.com/jsapi"></script>
+    <script type="text/javascript" src="static/js/utils.js"></script>
+    <script type="text/javascript">
+    google.load('visualization', '1.1', {packages:['controls', 'corechart']});
+    google.load("jquery", "1.4.2");
+    google.load("jqueryui", "1.8.13");
+    </script>
+    
+    <script>
+    // jquery here
+    $(function() {
+      changeData();
+  	});
+
+    var TABLE_ID = 997507;
+    
+    var INDEXES = {
+      station: 0,
+      year: 1,
+      month: 2,
+      avg_precip: 3,
+      percent_rained: 4,
+      precipitation_arr: 5
+    }
+    
+    /**
+     * Make call
+     */
+    function changeData() {
+      var date = new Date($("#date").val());
+      var year = date.getYear()+1900;
+      var month = date.getMonth()+1;
+      $('#ajax_loader').show();
+      var queryText = "SELECT station_id, month, AVERAGE(percent_rained), AVERAGE(total_precipitation)"+
+                      " FROM " + TABLE_ID + 
+                      " WHERE year<2010 AND year>2005"+
+                      " AND station_id >= 398183624 AND station_id<398189874" +
+                      " GROUP BY station_id, month"
+      var query = new google.visualization.Query(
+        'http://www.google.com/fusiontables/gvizdata?tq='  + queryText);
+      query.send(getData);
+    }
+
+    function getData(response) {
+      var data = response.getDataTable();
+      
+      
+      var quadGrouper = new google.visualization.ControlWrapper({
+        'controlType': 'QuadrantGrouper',
+        'containerId': 'dud_control',  
+      })
+      
+      var monthControl = new google.visualization.ControlWrapper({
+        'controlType': 'NumberRangeFilter',
+        'containerId': 'month_control',  
+        'options': {  
+          'filterColumnIndex': 1,   
+        }
+      })
+      
+      // define charts
+      scatterChart = new google.visualization.ChartWrapper({
+        chartType: 'ScatterChart',
+        containerId: 'combo_chart',
+        options: {
+          title : 'Rainy days against volume of rainfall per month',
+          vAxis: {title: "Percentage of days with rain per month", minValue:.7,maxValue:.7},
+          hAxis: {title: "Average total rainfall per month"},
+          legend: 'none'
+        },
+        view: {
+          columns: [3,2]
+        }
+      });
+      
+      pieChart = new google.visualization.ChartWrapper({
+        chartType: 'PieChart',
+        containerId: 'pie_chart',
+        options: {
+          height:'200px',
+          width:'200px',
+          legend:'top',
+          
+        }
+      });
+      
+      // Create a dashboard
+      var dash = new google.visualization.Dashboard(document.getElementById('dashboard'))
+      dash.bind(monthControl, [scatterChart, quadGrouper]).
+          bind(quadGrouper, pieChart).
+           draw(data);
+      $('#ajax_loader').hide();
+      }
+    </script>
+    <title></title>
+  </head>
+  <body>
+    <div id='container' class='shadow'>
+      <center style='font-size:12px;padding-top:3px'>
+        <a href='single.html'>Single Station</a> | 
+        <a href='many.html'>Multi Stations</a> | 
+        <a href='all.html'>All Stations</a> 
+      </center>
+      <div id='controls_box'>
+        <div id="slider-range"></div>    
+        <div id='month_control' style='float:right;margin-top:5px'></div>
+        <img style='padding-left:10px;display:none' src="static/images/ajax-loader.gif" id='ajax_loader'></img>
+      </div>
+      <div id='dashboard'>
+        <div id='dud_control' style='display:none'></div>
+        <div id='combo_chart' style="height:420px;width:600px;float:left"></div>
+        <div id='pie_chart' style="width:350px;height:400px;float:left"></div>
+        <div id='info' class='small text' style='float:left;padding:8px;margin-left:20px;width:900px;margin-top:10px;border-top:1px solid black'>
+          <p style='margin-bottom:5px;'>
+            Kate manages a community maintenance company; their operational area is covered by 9 weather stations.
+            Precipitation values significantly impact resource planning - Kate needs to see how she should be distributing
+            her workload during various periods of the year (ranges of months), based on different types of weather conditions.
+            <div class='info smallInfo'><b>Tip</b>: Adjust the month slider to see values for different times of the year.<br><br>
+            Note: Kate's <b>stations</b> (398183624, 398184374, 398184624, 398184874, 398185124, 398185374, 398185624, 398187624, 398187874) 
+            and <b>years</b> (2005-2010) have been preset.
+            </div>
+          </p>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

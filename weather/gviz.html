@@ -1,0 +1,225 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<html>
+  <head>
+
+<script type="text/javascript" src="http://www.google.com/jsapi">
+</script>
+
+    <script type="text/javascript">
+google.load('visualization', '1.1', {packages:['controls']});
+    google.load("jquery", "1.4.2");
+
+    //var precip_col_i = 3;
+    var year = 1;
+    var month = 2;
+    var avg_precip_col_i = 3;
+    var percent_rained=4;
+    var precipitation =5;
+    
+    function changeData() {
+      var queryText = "SELECT station_id, year, month, avg_precipitation, percent_rained, precipitation FROM 992383"
+      var query = new google.visualization.Query('http://www.google.com/fusiontables/gvizdata?tq='  + queryText);
+      query.send(getData);
+    }
+    
+    function sumEmAll(ar) {
+      for (var i=0, s=0;i<ar.length;i++) {
+        s+=ar[i];
+      }
+      return s;
+    }
+
+    var Aggregator = function() {
+      this.dataTable_ = null;
+      this.options_ = null;
+    }
+
+    Aggregator.prototype.draw = function(datatable, options, state) {
+      this.dataTable_ = datatable;
+      this.options_ = options;
+      google.visualization.events.trigger(this, 'ready', null);
+    };
+
+    Aggregator.prototype.applyOperator = function() {
+      return google.visualization.data.group(
+          this.dataTable_,
+          [{column: avg_precip_col_i, modifier:function(x) {return String(Math.round(x*100)/100)}, type:'string', label: 'Avg Precipitation for selection (inches)'}],
+          [{column: avg_precip_col_i, aggregation: google.visualization.data.count, type: 'number', label: 'Volume per bucket'}]);
+    };
+    
+    var PercentRainedAggregator = function() {
+      this.dataTable_ = null;
+      this.options_ = null;
+    }
+
+    PercentRainedAggregator.prototype.draw = function(datatable, options, state) {
+      this.dataTable_ = datatable;
+      this.options_ = options;
+      google.visualization.events.trigger(this, 'ready', null);
+    };
+
+    PercentRainedAggregator.prototype.applyOperator = function() {
+      var dt = google.visualization.data.group(
+          this.dataTable_,
+          [0],
+          [{column: percent_rained, aggregation: google.visualization.data.avg, type: 'number', label: '% of days that rained'}]);
+      
+      var formatter = new google.visualization.NumberFormat(
+        {fractionDigits: 2, suffix:'%'});
+      formatter.format(dt, 1); // Apply formatter to second column
+      dt.sort({column:1, desc:true});
+      return dt;
+    };
+    
+    
+    function getData(response) {
+      console.log(response)
+      var data = response.getDataTable();
+
+      var aggregator = new google.visualization.ControlWrapper({
+        'controlType': 'Aggregator',
+        'containerId': 'dudcontrol',
+      });
+      
+      var pcAggregator = new google.visualization.ControlWrapper({
+        'controlType': 'PercentRainedAggregator',
+        'containerId': 'dudcontrol',
+      });
+      
+           
+      categoryPicker = new google.visualization.ControlWrapper({
+        'controlType': 'CategoryFilter',
+        'containerId': 'control2',
+        'options': {
+          'filterColumnIndex': '0',
+          'ui': {
+          'labelStacking': 'vertical',
+            'allowTyping': false,
+            'allowMultiple': true
+          }
+        },
+        'state': {
+          'selectedValues': [411184874, 401189374, 403184624, 398184874, 406187874, 403188874, 473197374, 411190124, 393187624, 398183374, 391188874, 398187624, 383187124, 391188124, 388189374, 396184624, 416183124, 393185874, 406184624, 416184374, 386188874, 408184374, 398185624, 408188374, 396187874, 396187624, 391189124, 393189624, 388185624, 403186624, 383189374, 396184874, 386186874]
+        }
+      });
+      
+      datePicker = new google.visualization.ControlWrapper({
+        'controlType': 'NumberRangeFilter',
+        'containerId': 'control3',
+        'options': {
+          'filterColumnIndex': year,
+          useFormattedValue: true,
+          'ui': {
+          'labelStacking': 'vertical',
+            'allowTyping': false,
+            'allowMultiple': true
+          }
+        }
+      });
+      
+      monthPicker = new google.visualization.ControlWrapper({
+        'controlType': 'NumberRangeFilter',
+        'containerId': 'control4',
+        'options': {
+          'filterColumnIndex': month,
+          useFormattedValue: true,
+          'ui': {
+          'labelStacking': 'vertical',
+            'allowTyping': false,
+            'allowMultiple': true
+          }
+        }
+      });
+
+      var histogram = new google.visualization.ChartWrapper({
+        chartType: 'ColumnChart',
+        containerId: 'histo',
+      });
+      
+      var percentRained = new google.visualization.ChartWrapper({
+        chartType: 'Table',
+        containerId: 'percent_rained'
+      });
+      
+      var lineChart = new google.visualization.ChartWrapper({
+        chartType: 'LineChart',
+        containerId: 'line_chart'
+      });
+      
+      
+      var scatterChart = new google.visualization.ChartWrapper({
+        chartType: 'ScatterChart',
+        containerId: 'scatter_chart',
+        options: {
+          hAxis: {title: 'Percentage days with rain per month'},
+          vAxis: {title: 'Average RainFall per month'},
+        },
+        view: {
+          columns: [percent_rained, avg_precip_col_i]
+        }
+      });
+      
+      var wrapper = new google.visualization.ChartWrapper({
+        chartType: 'Table',
+        containerId: 'ftdata'
+      });
+      
+      
+
+      function selectHandler() {
+        var sel = percentRained.getChart().getSelection()[0];
+        var val = percentRained.getDataTable().getValue(sel.row, 0);
+        console.log(val);
+        var pVals = wrapper.getDataTable().getFilteredRows([{column:0, value: val}]);
+        var tbl = new google.visualization.DataTable();
+        tbl.addColumn('number', 'day'); tbl.addColumn('number', 'precipitation');
+        for (var i=0;i<pVals.length;i++) {
+          var arr = wrapper.getDataTable().getValue(pVals[i], precipitation);
+          arr = arr.slice(1, arr.length-1).split(', ');
+          for (var j=0;j<arr.length;j++) {
+            tbl.addRow([j, Number(arr[j])]);
+          }
+        }
+        tbl.sort({column:0, desc:false})
+        tbl = google.visualization.data.group(
+              tbl,
+              [{column: 0, modifier:function(x) {return String(x)}, type:'string'}],
+              [{column: 1, aggregation: google.visualization.data.avg, type: 'number'}]);
+        
+        lineChart.setDataTable(tbl);
+        lineChart.draw();
+        
+      }
+      
+      google.visualization.events.addListener(percentRained, 'select', selectHandler);
+    
+        // Create a dashboard
+        new google.visualization.Dashboard(document.getElementById('dashboard')).
+            bind([categoryPicker,datePicker, monthPicker], [wrapper, aggregator, pcAggregator, scatterChart]).
+            bind(aggregator, histogram).
+            bind(pcAggregator, percentRained).
+            draw(response.getDataTable());
+            
+        
+
+            
+        
+      }
+    </script>
+    <title></title>
+  </head>
+  <body>
+    <input type='button' value='go' onclick='changeData(); return false;'></input>
+    <div id='dashboard'>
+      <div id='control2'></div>
+      <div id='control3'></div>
+      <div id='control4'></div>
+      <div id='dudcontrol'></div>
+      <div id='histo' style='height:300px'></div>
+      <div id='line_chart' style='height:400px'></div>
+      <div id='scatter_chart' style='height:400px'></div>
+      <div id='percent_rained'></div>
+      <div id='ftdata'></div>
+    </div>
+  </body>
+</html>

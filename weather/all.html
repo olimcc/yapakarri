@@ -1,0 +1,171 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<html>
+<head>
+  <link rel="stylesheet" href="static/css/styles.css" type="text/css" media="screen" />
+  <link rel="stylesheet" href="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.13/themes/overcast/jquery-ui.css" type="text/css" media="screen" /> 
+  <link rel="stylesheet" href="static/css/jquery-ui.custom.css" type="text/css" media="screen" /> 
+  <link rel="stylesheet" href="static/css/forms.css" type="text/css" media="screen" /> 
+  <link href='http://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css'>
+    <script type="text/javascript" src="http://www.google.com/jsapi"></script>
+    <script type="text/javascript" src="static/js/utils.js"></script>
+    <script type="text/javascript">
+    google.load('visualization', '1.1', {packages:['controls', 'corechart']});
+    google.load("jquery", "1.4.2");
+    google.load("jqueryui", "1.8.13");
+    </script>
+    
+    <script>
+    // jquery here
+    
+    $(function() {
+      changeData();
+  	});
+    </script>
+    
+    <script>
+    var TABLE_ID = 997507;
+    var INDEXES = {
+      station: 0,
+      year: 1,
+      month: 2,
+      avg_precip: 3,
+      percent_rained: 4,
+      precipitation_arr: 5
+    }
+    
+    function changeData() {
+      var date = new Date($("#date").val());
+      var year = date.getYear()+1900;
+      var month = date.getMonth()+1;
+      $('#ajax_loader').show();
+      var queryText = "SELECT year, SUM(rained_days), SUM(total_days)"+
+                      " FROM " + TABLE_ID + 
+                      " WHERE year<2011" +
+                      " GROUP BY year";
+      executeQuery(queryText, getData);
+    }
+    
+    function executeQuery(q, cb) {
+      var query = new google.visualization.Query(
+        'http://www.google.com/fusiontables/gvizdata?tq='  + q);
+      query.send(cb);
+    }
+
+    function getData(response) {
+      var data = response.getDataTable();
+      
+      var tableControl = new google.visualization.ControlWrapper({
+        'controlType': 'NumberRangeFilter',
+        'containerId': 'table_control',  
+        'options': {  
+          'filterColumnIndex': 2,   
+          'ui': {
+            'orientation': 'vertical'
+          }
+        }
+      })
+      
+      // define charts
+      colChart = new google.visualization.ChartWrapper({
+        chartType: 'ColumnChart',
+        containerId: 'bar_chart',
+        options: {
+          title : '% Of Rainy Days per Year',
+          vAxis: {title: "% Of 365 Days"},
+          hAxis: {title: "Year"},
+          legend: 'none'
+        },
+        view: {
+          columns: [0,3]
+        }
+      });
+      
+      var tableChart = new google.visualization.ChartWrapper({
+        chartType: 'Table',
+        containerId: 'table',
+        options: {
+          title : 'Stations for selected years',
+          showRowNumbers: true,
+          sortColumn: 1,
+          sortAscending: false,
+        },
+      });
+      
+      data = new google.visualization.data.group(
+        data,
+        [0],
+        [{column:1, type:'number', aggregation: google.visualization.data.sum},
+         {column:2, type:'number', aggregation: google.visualization.data.sum}])
+         
+      var newCol = data.addColumn('number', 'average');
+      for (var i=0;i<data.getNumberOfRows();i++) {
+        data.setValue(
+          i,
+          newCol,
+          data.getValue(i, 1)/data.getValue(i, 2))
+      }
+
+      function renderTable(response) {
+        $('#ajax_loader2').hide();
+        dash.draw(response.getDataTable());
+        
+      }
+
+      function handleSelect() {
+        $('#ajax_loader2').show();
+        var sel = colChart.getChart().getSelection();
+        var row = sel[0].row;
+        var year = colChart.getDataTable().getValue(row, 0);
+        year = year.getYear()+1900;
+        var yearQ = "SELECT station_id, SUM(rained_days) AS 'Rainy Days', SUM(total_precipitation) AS 'Rain Volume'" +
+                    " FROM " + TABLE_ID + 
+                    " WHERE year=" + year +
+                    " GROUP BY station_id";
+        executeQuery(yearQ, renderTable);
+      }
+        
+      google.visualization.events.addListener(colChart, 'select', handleSelect);
+      
+      // Create a dashboard
+      var dash = new google.visualization.Dashboard(document.getElementById('dashboard'))
+      dash.bind(tableControl, tableChart);
+      colChart.setDataTable(data);
+      colChart.draw();
+      $('#ajax_loader').hide();
+      }
+    </script>
+    <title></title>
+  </head>
+  <body>
+    <div id='container' class='shadow'>
+      <center style='font-size:12px;padding-top:3px'>
+        <a href='single.html'>Single Station</a> | 
+        <a href='many.html'>Multi Stations</a> | 
+        <a href='all.html'>All Stations</a> 
+      </center>
+      <div id='controls_box'>  
+        <div id='month_control' style='float:right;margin-top:5px'></div>
+        <img style='padding-left:10px;display:none' src="static/images/ajax-loader.gif" id='ajax_loader'></img>
+      </div>
+      <div id='dashboard'>
+        <div id='dud_control' style='display:none'></div>
+        <div id='bar_chart' style="width:100%;height:370px;"></div>
+        <img style='padding-left:10px;display:none' src="static/images/ajax-loader.gif" id='ajax_loader2'></img>
+        <div id='table' style="height:200px;width:300px;float:left;margin-left:25px">
+          <center>
+            <p style='padding-top:30%;padding-left:30%'>Select a column above to see granular data here!</p>
+          </center>
+        </div>
+        <div id='table_control' style='float:left;height:10px;margin-left:10px;width:100px'></div>
+        <div id='info' class='small text' style='float:left;padding:8px;margin-left:20px;width:400px;margin-top:10px;border-left:1px solid black'>
+          <p style='margin-bottom:5px;'>
+            John has been selling ice-cream for 60 years, across all available locations (i.e. stations), and has detailed records of years with poor sales.
+          He noticed that 1982, 1984, 1989, 1998 and 2003 were particularly bad years and wants to see if this had anything to do
+          with rain levels. If he notices poor weather on these years, he wants to see the worst hit locations, so that he can
+          reduce business operations in those areas.</p>
+          <div class='info smallInfo'><b>Tip</b>: Select a year on the chart to get deeper station data.</div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
