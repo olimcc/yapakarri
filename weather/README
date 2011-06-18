@@ -1,0 +1,35 @@
+Author: Oli Mccormack
+
+This application serves as a method of visualizing precipitation records stored for a series of weather stations, starting in 1948.
+
+Base file:
+  Contains ~3,200,000 data points, representing 63 years worth of data.
+  
+Aggregation:
+  Data is aggregated for each station id at the yearly and monthly level.
+  Running aggregator.py will produce two csv files reflecting the 
+  yearly (~9000 records) and monthly (~105000 records) data.
+
+  Each output file contains the following columns:
+    station_id: integer representing station id
+    rained_days: total number of days with rain in time frame
+    total_days: total number of days in time frame (i.e. 365 for a year)
+    precipitation: list of precipitations values, per day for time frame (i.e. [.01, .0, 032, ....])
+    total_precipitation: sum of precipitation values for time frame 
+    percent_rained: percentage of days with rain in timeframe
+    avg_precipitation: average value for precipitation over time frame
+  
+  In addition to these columns, yearly output will include a 'year' identifier, monthly will contain both 'year' and 'month'
+
+Data storage:
+  Data is currently stored between two Google Fusion Tables:
+    yearly: http://www.google.com/fusiontables/DataSource?dsrcid=992163
+    monthly: http://www.google.com/fusiontables/DataSource?dsrcid=997507
+
+Web Interface:
+  http://www.olimcc.com/wb/single.html
+  
+  Contains three primary views, each exposing a number of attributes of the data set:
+  single/multi/all stations
+  daily/monthly/yearly data
+  
